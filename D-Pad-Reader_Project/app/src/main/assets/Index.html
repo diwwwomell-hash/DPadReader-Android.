@@ -1,0 +1,1320 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>D-Pad Reader</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#000;color:#fff;font-family:-apple-system,system-ui,Roboto,sans-serif;user-select:none}
+#app{position:fixed;top:0;left:0;right:0;height:100dvh;display:flex;flex-direction:column;transition:none}
+
+.screen{position:absolute;top:0;left:0;right:0;bottom:0;display:none;flex-direction:column;background:#000}
+.screen.active{display:flex}
+
+.home-header{padding:16px;border-bottom:1px solid #222;flex-shrink:0}
+.home-header h1{font-size:18px;margin:0 0 12px 0;letter-spacing:2px;font-weight:700}
+.home-actions{display:flex;gap:8px}
+.home-actions button{flex:1;padding:14px;font-size:13px;font-weight:700;letter-spacing:1px;border:1.5px solid #333;border-radius:10px;background:#111;color:#fff;cursor:pointer}
+.home-actions button:active{background:#fff;color:#000;border-color:#fff}
+.home-actions button.primary{background:#fff;color:#000;border-color:#fff}
+
+.file-list{flex:1;overflow-y:auto;padding:8px}
+.file-item{padding:14px 16px;border-bottom:1px solid #1a1a1a;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.file-item:active{background:#1a1a1a}
+.file-info{flex:1;min-width:0}
+.file-name{font-size:14px;color:#fff;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.file-meta{font-size:11px;color:#666;margin-top:3px}
+.file-del{padding:6px 10px;font-size:11px;color:#888;background:#111;border:1px solid #333;border-radius:6px;cursor:pointer}
+.file-del:active{background:#600;color:#fff;border-color:#600}
+.empty-msg{padding:40px 20px;text-align:center;color:#444;font-size:13px;line-height:1.6}
+
+/* Editor */
+.editor-header{padding:8px 12px;border-bottom:1px solid #222;display:flex;align-items:center;gap:10px;flex-shrink:0}
+.back-btn{padding:8px 12px;background:#111;border:1.5px solid #333;border-radius:8px;color:#fff;font-size:14px;cursor:pointer}
+.back-btn:active{background:#fff;color:#000}
+.editor-filename{flex:1;font-size:13px;color:#aaa;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.save-indicator{font-size:10px;color:#2ecc71;text-transform:uppercase;letter-spacing:1px}
+.save-indicator.hidden{visibility:hidden}
+
+.pos-wrap{padding:12px;text-align:center;border-bottom:1px solid #222;flex-shrink:0}
+.pos-main{font-size:24px;font-weight:700;color:#fff;letter-spacing:1px;font-variant-numeric:tabular-nums}
+.pos-header{display:inline-block;margin-top:5px;padding:4px 10px;font-size:11px;color:#888;text-transform:uppercase;letter-spacing:1.5px;background:#111;border:1px solid #333;border-radius:20px;cursor:pointer}
+.pos-header b{color:#fff}
+.cell-title{margin-top:8px;padding-top:8px;border-top:1px dashed #222}
+.cell-label{font-size:9px;color:#555;text-transform:uppercase;letter-spacing:2px}
+.cell-text{font-size:13px;color:#ddd;margin-top:2px}
+.product-row{margin-top:6px;display:inline-block;padding:3px 8px;background:#111;border:1px solid #222;border-radius:6px;cursor:pointer;max-width:90%}
+.product-row .plabel{font-size:9px;color:#555;text-transform:uppercase;letter-spacing:1.5px;margin-right:5px}
+.product-row b{font-size:12px;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;max-width:200px;vertical-align:middle}
+
+.nav-wrap{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:10px;overflow:hidden}
+.dpad{display:grid;grid-template-columns:repeat(3,65px);grid-template-rows:repeat(2,65px);gap:6px}
+.btn-nav{width:65px;height:65px;border:1.5px solid #333;border-radius:12px;background:#111;color:#fff;font-size:22px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+.btn-nav:active{background:#fff;color:#000;border-color:#fff}
+.btn-up{grid-column:2;grid-row:1}
+.btn-left{grid-column:1;grid-row:2}
+.btn-down{grid-column:2;grid-row:2;border-left:1.5px solid #444;border-right:1.5px solid #444}
+.btn-right{grid-column:3;grid-row:2}
+
+.input-wrap{padding:10px 12px 14px;border-top:1px solid #222;flex-shrink:0}
+.input-wrap input{width:100%;padding:14px;font-size:17px;border:1.5px solid #333;border-radius:10px;background:#111;color:#fff;outline:none;margin-bottom:8px}
+.input-wrap input:focus{border-color:#fff}
+.input-row{display:flex;gap:8px}
+.btn-ok{flex:2;padding:16px 8px;font-size:15px;font-weight:700;letter-spacing:2px;border:none;border-radius:10px;background:#fff;color:#000;cursor:pointer}
+.btn-ok:active{background:#ccc}
+.btn-dl{flex:1;padding:16px 6px;font-size:12px;font-weight:700;letter-spacing:1px;border:1.5px solid #333;border-radius:10px;background:#111;color:#fff;cursor:pointer}
+.btn-dl:active{background:#fff;color:#000}
+.btn-ok:active{background:#ccc}
+.btn-dl{padding:16px 18px;font-size:14px;font-weight:700;letter-spacing:1px;border:1.5px solid #333;border-radius:10px;background:#111;color:#fff;cursor:pointer}
+.btn-dl:active{background:#fff;color:#000}
+
+.status{padding:5px 12px;font-size:10px;color:#444;text-align:center;border-top:1px solid #1a1a1a;flex-shrink:0}
+
+/* Modal */
+.modal-bg{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);display:none;align-items:center;justify-content:center;z-index:200;padding:20px}
+.modal-bg.show{display:flex}
+.modal{background:#0a0a0a;border:1px solid #333;border-radius:12px;width:100%;max-width:400px;max-height:80vh;display:flex;flex-direction:column;overflow:hidden}
+.modal-title{padding:14px 16px;font-size:11px;color:#888;text-transform:uppercase;letter-spacing:1.5px;border-bottom:1px solid #1a1a1a}
+.modal-body{padding:16px;flex:1;overflow-y:auto}
+.modal-body input{width:100%;padding:12px;font-size:15px;background:#111;border:1.5px solid #333;border-radius:8px;color:#fff;outline:none}
+.modal-body input:focus{border-color:#fff}
+.modal-body label{display:block;font-size:11px;color:#888;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px}
+.modal-list{flex:1;overflow-y:auto}
+.modal-item{padding:12px 16px;border-bottom:1px solid #1a1a1a;cursor:pointer;font-size:14px;color:#aaa;display:flex;align-items:center;gap:10px}
+.modal-item:active{background:#1a1a1a}
+.modal-item.active{background:#1a1a1a;color:#fff;font-weight:600}
+.modal-item .lt{width:30px;height:30px;display:flex;align-items:center;justify-content:center;background:#111;border:1px solid #333;border-radius:6px;font-size:12px;font-weight:700;color:#888;flex-shrink:0}
+.modal-item.active .lt{background:#fff;color:#000;border-color:#fff}
+.modal-footer{padding:10px 16px;display:flex;gap:8px;border-top:1px solid #1a1a1a}
+.modal-footer button{flex:1;padding:12px;font-size:13px;font-weight:700;border:1.5px solid #333;border-radius:8px;background:#111;color:#fff;cursor:pointer}
+.modal-footer button:active{background:#fff;color:#000}
+.modal-footer button.primary{background:#fff;color:#000;border-color:#fff}
+.product-row .close-btn {
+  margin-left: 8px;
+  color: #666;
+  font-size: 16px;
+  padding: 0 6px;
+  font-weight: 700;
+  display: inline-block;
+  vertical-align: middle;
+}
+.product-row .close-btn:active {
+  color: #fff;
+}
+.product-restore {
+  margin-top: 6px;
+  display: inline-block;
+  padding: 3px 10px;
+  background: #111;
+  border: 1px dashed #333;
+  border-radius: 6px;
+  font-size: 10px;
+  color: #666;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+}
+.product-restore:active {
+  color: #fff;
+  border-color: #fff;
+}
+.product-restore.hidden {
+  display: none;
+}
+/*search warp*/
+.search-wrap{padding:8px 12px;border-bottom:1px solid #222;position:relative;flex-shrink:0;display:flex;align-items:center;width:100%;box-sizing:border-box}
+.search-wrap input{flex:1;min-width:0;padding:10px 12px;font-size:14px;border:1.5px solid #333;border-radius:8px;background:#111;color:#fff;outline:none}
+.search-wrap input:focus{border-color:#fff}
+
+/* Search clear button */
+.search-clear{margin-left:8px;width:32px;height:32px;border:none;background:#333;color:#fff;border-radius:50%;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;line-height:1;flex-shrink:0}
+.search-clear:active{background:#fff;color:#000}
+.search-clear.hidden{display:none}
+
+.search-results{position:absolute;top:100%;left:12px;right:12px;max-height:60vh;overflow-y:auto;background:#0a0a0a;border:1px solid #333;border-top:none;border-radius:0 0 8px 8px;z-index:100;display:none}
+.search-results.show{display:block}
+/* Search results header */
+.search-results-header{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid #1a1a1a;position:sticky;top:0;background:#0a0a0a;z-index:1}
+.search-results-header span{font-size:10px;color:#666;text-transform:uppercase;letter-spacing:1px}
+.search-cancel{padding:5px 12px;font-size:11px;font-weight:700;border:1px solid #333;border-radius:6px;background:#111;color:#888;cursor:pointer;letter-spacing:0.5px}
+.search-cancel:active{background:#fff;color:#000;border-color:#fff}
+.search-results-body{overflow-y:auto;max-height:200px;-webkit-overflow-scrolling:touch}
+
+/* Search results ambil tinggi layar kalau perlu */
+.search-results{max-height:60vh}
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- HOME SCREEN -->
+  <div class="screen active" id="screenHome">
+    <div class="home-header">
+      <h1>D-PAD READER</h1>
+      <div class="home-actions">
+        <button class="primary" id="btnNew">+ BARU</button>
+        <button id="btnUpload">UNGGAH FILE</button>
+      </div>
+    </div>
+    <div class="file-list" id="fileList"></div>
+    <div class="status" id="homeStatus">Siap</div>
+  </div>
+
+<!-- EDITOR SCREEN -->
+<div class="screen" id="screenEditor">
+<div class="editor-header">
+  <button class="back-btn" id="btnBack">&larr;</button>
+  <div class="editor-filename" id="editorFilename">-</div>
+  <div class="save-indicator hidden" id="saveIndicator">Tersimpan</div>
+</div>
+
+<div class="search-wrap">
+  <input type="text" id="searchInput" placeholder="Cari data..." autocomplete="off" autocorrect="off" spellcheck="false">
+  <button type="button" class="search-clear hidden" id="searchClear">&times;</button>
+  <div class="search-results" id="searchResults">
+    <div class="search-results-header">
+      <span id="searchCount">0 hasil</span>
+      <button type="button" class="search-cancel" id="searchCancel">Batal</button>
+    </div>
+    <div class="search-results-body" id="searchResultsBody"></div>
+  </div>
+</div>
+
+    <div class="pos-wrap">
+      <div class="pos-main" id="posMain">A1</div>
+      <div class="pos-header" id="posHeader">Kolom: <b id="posHeaderLabel">-</b></div>
+      <div class="cell-title">
+        <div class="cell-label">Judul Sel</div>
+        <div class="cell-text" id="cellText">-</div>
+        <div class="product-row" id="productRow">
+  <span class="plabel">Produk:</span><b id="productName">-</b>
+  <span class="close-btn" id="productClose">&times;</span>
+</div>
+<div class="product-restore hidden" id="productRestore" title="Tampilkan referensi produk">
+  + Tampilkan Referensi
+</div>
+      </div>
+    </div>
+
+    <div class="nav-wrap">
+      <div class="dpad">
+        <button type="button" class="btn-nav btn-up" id="btnUp">&#9650;</button>
+        <button type="button" class="btn-nav btn-left" id="btnLeft">&#9664;</button>
+        <button type="button" class="btn-nav btn-down" id="btnDown">&#9660;</button>
+        <button type="button" class="btn-nav btn-right" id="btnRight">&#9654;</button>
+      </div>
+    </div>
+
+    <div class="input-wrap">
+      <input type="text" id="dataInput" placeholder="Ketik data di sini..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+      <div class="input-row">
+  <button type="button" class="btn-ok" id="btnOk">OK</button>
+  <button type="button" class="btn-dl" id="btnDownload">CSV</button>
+  <button type="button" class="btn-dl" id="btnDownloadXlsx">XLSX</button>
+</div>
+    </div>
+
+    <div class="status" id="editorStatus">Siap</div>
+  </div>
+
+</div>
+
+<!-- MODAL: INPUT NAMA FILE -->
+<div class="modal-bg" id="modalName">
+  <div class="modal">
+    <div class="modal-title">Nama File Baru</div>
+    <div class="modal-body">
+      <label>Nama file (tanpa .csv)</label>
+      <input type="text" id="newFileName" placeholder="misal: produk-buku-oktober" autocomplete="off">
+    </div>
+    <div class="modal-footer">
+      <button id="btnNameCancel">Batal</button>
+      <button class="primary" id="btnNameOk">Buat</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: PEMILIH KOLOM -->
+<div class="modal-bg" id="modalPicker">
+  <div class="modal">
+    <div class="modal-title" id="pickerTitle">Pilih Kolom</div>
+    <div class="modal-list" id="pickerList"></div>
+    <div class="modal-footer">
+      <button id="btnPickerClose">Tutup</button>
+    </div>
+  </div>
+</div>
+
+<!-- INPUT FILE HIDDEN -->
+<input type="file" id="fileInput" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none">
+
+<script>
+/* Android WebView: simpan Blob agar ekspor tidak gagal saat URL sudah di-revoke */
+(function(){
+  window.__dpadBlobs = {};
+  var c = URL.createObjectURL.bind(URL), r = URL.revokeObjectURL.bind(URL);
+  URL.createObjectURL = function(b){ var u = c(b); try{ window.__dpadBlobs[u]=b; }catch(e){} return u; };
+  URL.revokeObjectURL = function(u){ setTimeout(function(){ try{ delete window.__dpadBlobs[u]; }catch(e){} r(u); }, 60000); };
+})();
+
+/* Fallback inflate (raw DEFLATE) untuk WebView tanpa DecompressionStream */
+function dpadInflateRaw(src){
+  var pos=0,bitBuf=0,bitCnt=0,out=[];
+  function bits(n){ while(bitCnt<n){ if(pos>=src.length) throw new Error('EOF'); bitBuf|=src[pos++]<<bitCnt; bitCnt+=8; } var v=bitBuf&((1<<n)-1); bitBuf>>>=n; bitCnt-=n; return v; }
+  function build(lens){ var count=new Array(16).fill(0),offs=new Array(16).fill(0),syms=[],i; for(i=0;i<lens.length;i++)count[lens[i]]++; count[0]=0; for(i=1;i<16;i++)offs[i]=offs[i-1]+count[i-1]; for(i=0;i<lens.length;i++) if(lens[i]) syms[offs[lens[i]]++]=i; return {count:count,syms:syms}; }
+  function decode(h){ var code=0,first=0,index=0; for(var len=1;len<16;len++){ code|=bits(1); var c=h.count[len]; if(code-c<first) return h.syms[index+(code-first)]; index+=c; first+=c; first<<=1; code<<=1; } throw new Error('Huffman'); }
+  var LB=[3,4,5,6,7,8,9,10,11,13,15,17,19,23,27,31,35,43,51,59,67,83,99,115,131,163,195,227,258],
+      LE=[0,0,0,0,0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3,4,4,4,4,5,5,5,5,0],
+      DB=[1,2,3,4,5,7,9,13,17,25,33,49,65,97,129,193,257,385,513,769,1025,1537,2049,3073,4097,6145,8193,12289,16385,24577],
+      DE=[0,0,0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,11,11,12,12,13,13];
+  var fl=[],i; for(i=0;i<144;i++)fl.push(8); for(;i<256;i++)fl.push(9); for(;i<280;i++)fl.push(7); for(;i<288;i++)fl.push(8);
+  var fixedL=build(fl), fixedD=build(new Array(30).fill(5));
+  function codes(lc,dc){ for(;;){ var s=decode(lc); if(s<256) out.push(s); else if(s===256) return; else { s-=257; var len=LB[s]+bits(LE[s]); var ds=decode(dc); var d=DB[ds]+bits(DE[ds]); if(d>out.length) throw new Error('dist'); for(var k=0;k<len;k++) out.push(out[out.length-d]); } } }
+  var last;
+  do {
+    last=bits(1); var t=bits(2);
+    if(t===0){ bitBuf=0; bitCnt=0; var len=src[pos]|(src[pos+1]<<8); pos+=4; for(var j=0;j<len;j++) out.push(src[pos++]); }
+    else if(t===1) codes(fixedL,fixedD);
+    else if(t===2){
+      var nlen=bits(5)+257,ndist=bits(5)+1,ncode=bits(4)+4,ord=[16,17,18,0,8,7,9,6,10,5,11,4,12,3,13,2,14,1,15],lens=new Array(19).fill(0),x;
+      for(x=0;x<ncode;x++) lens[ord[x]]=bits(3);
+      var lh=build(lens), all=[];
+      while(all.length<nlen+ndist){ var sym=decode(lh); if(sym<16) all.push(sym); else { var prev=0,rep; if(sym===16){ prev=all[all.length-1]; rep=3+bits(2);} else if(sym===17) rep=3+bits(3); else rep=11+bits(7); while(rep--) all.push(prev); } }
+      codes(build(all.slice(0,nlen)), build(all.slice(nlen)));
+    } else throw new Error('block');
+  } while(!last);
+  return new Uint8Array(out);
+}
+</script>
+<script>
+// ==================== KONFIGURASI ====================
+var STORAGE_KEY = 'dpad_files_v1';
+var PRODUCT_HEADER_NAMES = ['nama produk', 'produk', 'nama_produk', 'name', 'title'];
+
+// ==================== STATE ====================
+var files = {};           // { id: { name, data, updated } }
+var currentId = null;     // file yang sedang dibuka
+var row = 1;
+var col = 1;
+var productCol = 1;
+var pickerMode = 'navigate';
+
+// ==================== UTIL ====================
+function uid() {
+  return 'f' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+}
+
+function colLetter(n) {
+  var s = '';
+  while (n > 0) {
+    var r = (n - 1) % 26;
+    s = String.fromCharCode(65 + r) + s;
+    n = Math.floor((n - 1) / 26);
+  }
+  return s;
+}
+
+function nowStr() {
+  var d = new Date();
+  var pad = function (x) { return x < 10 ? '0' + x : '' + x; };
+  return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+    + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+
+function setStatus(elId, msg, keep) {
+  var el = document.getElementById(elId);
+  if (!el) return;
+  el.innerText = msg;
+  if (!keep) {
+    setTimeout(function () {
+      if (el.innerText === msg) el.innerText = 'Siap';
+    }, 2500);
+  }
+}
+
+// ==================== CSV PARSE ====================
+// Semua nilai dibaca sebagai string. SKU panjang aman.
+function parseCSV(text) {
+  var rows = [];
+  var row = [];
+  var field = '';
+  var inQuotes = false;
+  var i = 0;
+  // Buang BOM
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  while (i < text.length) {
+    var c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { field += '"'; i += 2; continue; }
+        inQuotes = false; i++; continue;
+      }
+      field += c; i++;
+    } else {
+      if (c === '"') { inQuotes = true; i++; continue; }
+      if (c === ',') { row.push(field); field = ''; i++; continue; }
+      if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; i++; continue; }
+      if (c === '\r') { i++; continue; }
+      field += c; i++;
+    }
+  }
+  if (field.length > 0 || row.length > 0) { row.push(field); rows.push(row); }
+  // Buang baris kosong di ujung
+  while (rows.length > 0 && rows[rows.length - 1].length === 1 && rows[rows.length - 1][0] === '') {
+    rows.pop();
+  }
+  return rows;
+}
+
+// ==================== CSV STRINGIFY ====================
+// Nilai berupa digit panjang dibungkus tanda kutip agar tidak jadi notasi ilmiah.
+function stringifyCSV(rows) {
+  var out = [];
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    var cells = [];
+    for (var j = 0; j < r.length; j++) {
+      var v = r[j] == null ? '' : String(r[j]);
+      var needQuote = false;
+if (v.indexOf('"') !== -1 || v.indexOf(',') !== -1 || v.indexOf('\n') !== -1) needQuote = true;
+// Lindungi angka dari konversi spreadsheet:
+// 1. Semua digit DAN panjang > 10 (SKU panjang)
+// 2. Semua digit DAN diawali '0' (leading zero, seperti 000000 atau 0812...)
+if (/^[0-9]+$/.test(v)) {
+  if (v.length > 10 || v.charAt(0) === '0') needQuote = true;
+}
+      if (needQuote) {
+        cells.push('"' + v.replace(/"/g, '""') + '"');
+      } else {
+        cells.push(v);
+      }
+    }
+    out.push(cells.join(','));
+  }
+  return out.join('\r\n');
+}
+
+// ==================== XLSX PARSER ====================
+function decodeXmlEntities(s) {
+  return String(s == null ? '' : s)
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&#(\d+);/g, function (_, n) { return String.fromCharCode(parseInt(n, 10)); })
+    .replace(/&#x([0-9a-fA-F]+);/g, function (_, n) { return String.fromCharCode(parseInt(n, 16)); });
+}
+
+function letterToColIndex(letters) {
+  var n = 0;
+  for (var i = 0; i < letters.length; i++) {
+    n = n * 26 + (letters.charCodeAt(i) - 64);
+  }
+  return n - 1;
+}
+
+function findEOCD(bytes) {
+  for (var i = bytes.length - 22; i >= 0 && i >= bytes.length - 65558; i--) {
+    if (bytes[i] === 0x50 && bytes[i + 1] === 0x4B && bytes[i + 2] === 0x05 && bytes[i + 3] === 0x06) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+function readZipEntries(arrayBuffer) {
+  var bytes = new Uint8Array(arrayBuffer);
+  var view = new DataView(arrayBuffer);
+  var eocd = findEOCD(bytes);
+  if (eocd < 0) throw new Error('Bukan file XLSX valid');
+
+  var cdCount = view.getUint16(eocd + 10, true);
+  var cdOffset = view.getUint32(eocd + 16, true);
+  var entries = {};
+  var pos = cdOffset;
+
+  for (var i = 0; i < cdCount; i++) {
+    if (view.getUint32(pos, true) !== 0x02014b50) break;
+    var method = view.getUint16(pos + 10, true);
+    var compSize = view.getUint32(pos + 20, true);
+    var nameLen = view.getUint16(pos + 28, true);
+    var extraLen = view.getUint16(pos + 30, true);
+    var commentLen = view.getUint16(pos + 32, true);
+    var localOffset = view.getUint32(pos + 42, true);
+    var name = new TextDecoder().decode(bytes.slice(pos + 46, pos + 46 + nameLen));
+    entries[name] = { method: method, compSize: compSize, localOffset: localOffset };
+    pos += 46 + nameLen + extraLen + commentLen;
+  }
+  return { bytes: bytes, view: view, entries: entries };
+}
+
+async function extractZipEntry(zip, name) {
+  var e = zip.entries[name];
+  if (!e) return null;
+  var lo = e.localOffset;
+  var lNameLen = zip.view.getUint16(lo + 26, true);
+  var lExtraLen = zip.view.getUint16(lo + 28, true);
+  var dataStart = lo + 30 + lNameLen + lExtraLen;
+  var dataEnd = dataStart + e.compSize;
+  var compressed = zip.bytes.slice(dataStart, dataEnd);
+
+  if (e.method === 0) {
+    return new TextDecoder().decode(compressed);
+  }
+  if (e.method === 8) {
+    if (typeof DecompressionStream !== 'undefined') {
+      try {
+        var ds = new DecompressionStream('deflate-raw');
+        var stream = new Blob([compressed]).stream().pipeThrough(ds);
+        var buf = await new Response(stream).arrayBuffer();
+        return new TextDecoder().decode(buf);
+      } catch (err) { /* lanjut ke fallback */ }
+    }
+    return new TextDecoder().decode(dpadInflateRaw(compressed));
+  }
+  throw new Error('Kompresi tidak didukung: ' + e.method);
+}
+
+function parseSharedStrings(xml) {
+  var arr = [];
+  if (!xml) return arr;
+  var siRegex = /<si>([\s\S]*?)<\/si>/g;
+  var m;
+  while ((m = siRegex.exec(xml)) !== null) {
+    var text = '';
+    var tRegex = /<t[^>]*>([\s\S]*?)<\/t>/g;
+    var t;
+    while ((t = tRegex.exec(m[1])) !== null) {
+      text += decodeXmlEntities(t[1]);
+    }
+    arr.push(text);
+  }
+  return arr;
+}
+
+function parseXLSXSheet(xml, sharedStrings) {
+  var rows = [];
+  if (!xml) return rows;
+
+  var rowRegex = /<row\b([^>]*)>([\s\S]*?)<\/row>/g;
+  var rowMatch;
+  while ((rowMatch = rowRegex.exec(xml)) !== null) {
+    var rowAttrs = rowMatch[1];
+    var rowContent = rowMatch[2];
+    var rMatch = rowAttrs.match(/\br="(\d+)"/);
+    var rowNum = rMatch ? parseInt(rMatch[1], 10) : (rows.length + 1);
+
+    var cells = [];
+    var cellRegex = /<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;
+    var cMatch;
+    while ((cMatch = cellRegex.exec(rowContent)) !== null) {
+      var cAttrs = cMatch[1];
+      var cContent = cMatch[2] || '';
+
+      var refMatch = cAttrs.match(/\br="([A-Z]+)/);
+      var colIdx = refMatch ? letterToColIndex(refMatch[1]) : cells.length;
+
+      var typeMatch = cAttrs.match(/\bt="([^"]+)"/);
+      var type = typeMatch ? typeMatch[1] : 'n';
+
+      var value = '';
+      if (type === 'inlineStr') {
+        var tMatch = cContent.match(/<t[^>]*>([\s\S]*?)<\/t>/);
+        if (tMatch) value = decodeXmlEntities(tMatch[1]);
+      } else if (type === 's') {
+        var vMatch = cContent.match(/<v>([\s\S]*?)<\/v>/);
+        if (vMatch) {
+          var idx = parseInt(vMatch[1], 10);
+          value = sharedStrings[idx] != null ? sharedStrings[idx] : '';
+        }
+      } else {
+        var vMatch2 = cContent.match(/<v>([\s\S]*?)<\/v>/);
+        if (vMatch2) value = decodeXmlEntities(vMatch2[1]);
+      }
+
+      while (cells.length < colIdx) cells.push('');
+      cells[colIdx] = value;
+    }
+
+    while (rows.length < rowNum - 1) rows.push([]);
+    rows[rowNum - 1] = cells;
+  }
+  return rows;
+}
+
+async function parseXLSX(arrayBuffer) {
+  var zip = readZipEntries(arrayBuffer);
+  var sheetXml = await extractZipEntry(zip, 'xl/worksheets/sheet1.xml');
+  if (!sheetXml) throw new Error('Sheet1 tidak ditemukan di XLSX');
+  var sharedXml = await extractZipEntry(zip, 'xl/sharedStrings.xml');
+  var sharedStrings = parseSharedStrings(sharedXml);
+  var rows = parseXLSXSheet(sheetXml, sharedStrings);
+
+  // Buang baris kosong di ujung
+  while (rows.length > 0 && rows[rows.length - 1].every(function (c) { return !c || c === ''; })) {
+    rows.pop();
+  }
+  // Normalisasi lebar kolom
+  var maxCols = 0;
+  for (var i = 0; i < rows.length; i++) if (rows[i].length > maxCols) maxCols = rows[i].length;
+  for (var j = 0; j < rows.length; j++) {
+    while (rows[j].length < maxCols) rows[j].push('');
+  }
+  return rows;
+}
+// ==================== STORAGE ====================
+function loadFiles() {
+  try {
+    var raw = localStorage.getItem(STORAGE_KEY);
+    files = raw ? JSON.parse(raw) : {};
+  } catch (e) {
+    files = {};
+  }
+}
+
+function saveFiles() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(files));
+  } catch (e) {
+    setStatus('editorStatus', 'Gagal simpan: ' + e.message);
+  }
+}
+
+function saveCurrentFile() {
+  if (!currentId || !files[currentId]) return;
+  files[currentId].updated = nowStr();
+  saveFiles();
+  var ind = document.getElementById('saveIndicator');
+  ind.classList.remove('hidden');
+  setTimeout(function () { ind.classList.add('hidden'); }, 1200);
+}
+
+// ==================== HOME SCREEN ====================
+function renderFileList() {
+  var list = document.getElementById('fileList');
+  var ids = Object.keys(files);
+  ids.sort(function (a, b) {
+    return (files[b].updated || '').localeCompare(files[a].updated || '');
+  });
+  if (ids.length === 0) {
+    list.innerHTML = '<div class="empty-msg">Belum ada file.<br>Ketuk <b>+ BARU</b> untuk mulai, atau <b>UNGGAH CSV</b> untuk membuka file dari HP.</div>';
+    return;
+  }
+  var html = '';
+  for (var i = 0; i < ids.length; i++) {
+    var id = ids[i];
+    var f = files[id];
+    var rowCount = (f.data ? f.data.length : 0);
+    html += '<div class="file-item" data-id="' + id + '">'
+      + '<div class="file-info">'
+      + '<div class="file-name">' + escapeHtml(f.name) + '</div>'
+      + '<div class="file-meta">' + rowCount + ' baris &middot; ' + (f.updated || '-') + '</div>'
+      + '</div>'
+      + '<button class="file-del" data-del="' + id + '">Hapus</button>'
+      + '</div>';
+  }
+  list.innerHTML = html;
+  // Event: buka file
+  var items = list.querySelectorAll('.file-item');
+  for (var k = 0; k < items.length; k++) {
+    items[k].addEventListener('click', function (e) {
+      if (e.target.getAttribute('data-del')) return; // hapus
+      var id = this.getAttribute('data-id');
+      openFile(id);
+    });
+  }
+  // Event: hapus file
+  var dels = list.querySelectorAll('.file-del');
+  for (var d = 0; d < dels.length; d++) {
+    dels[d].addEventListener('click', function (e) {
+      e.stopPropagation();
+      var id = this.getAttribute('data-del');
+      if (confirm('Hapus file ini?')) {
+        delete files[id];
+        saveFiles();
+        renderFileList();
+      }
+    });
+  }
+}
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function showHome() {
+  document.getElementById('screenHome').classList.add('active');
+  document.getElementById('screenEditor').classList.remove('active');
+  renderFileList();
+  currentId = null;
+}
+
+function showEditor() {
+  document.getElementById('screenHome').classList.remove('active');
+  document.getElementById('screenEditor').classList.add('active');
+}
+
+// ==================== OPEN / CREATE FILE ====================
+function openFile(id) {
+  if (!files[id]) return;
+  currentId = id;
+  var d = files[id].data || [];
+  // Pastikan ada minimal 1x1
+  if (d.length === 0) d = [['']];
+  files[id].data = d;
+  row = 1; col = 1;
+  productCol = detectProductCol();
+  document.getElementById('editorFilename').innerText = files[id].name;
+  document.getElementById('dataInput').value = '';
+  showEditor();
+  refresh();
+  setStatus('editorStatus', 'Dibuka: ' + files[id].name);
+}
+
+function detectProductCol() {
+  if (!currentId || !files[currentId]) return 1;
+  var d = files[currentId].data;
+  if (!d || d.length === 0) return 1;
+  var head = d[0] || [];
+  for (var i = 0; i < head.length; i++) {
+    var h = String(head[i] || '').toLowerCase().trim();
+    for (var j = 0; j < PRODUCT_HEADER_NAMES.length; j++) {
+      if (h === PRODUCT_HEADER_NAMES[j]) return i + 1;
+    }
+  }
+  return 1; // fallback ke kolom A
+}
+
+// ==================== RENDER EDITOR ====================
+function refresh() {
+  if (!currentId || !files[currentId]) return;
+  var d = files[currentId].data;
+
+  // Pastikan baris ada
+  while (d.length < row) d.push([]);
+  var r = d[row - 1];
+  while (r.length < col) r.push('');
+
+  var colL = colLetter(col);
+  document.getElementById('posMain').innerText = colL + row;
+
+  var head = d[0] || [];
+  var header = head[col - 1] != null && head[col - 1] !== '' ? head[col - 1] : '(kolom ' + colL + ')';
+  document.getElementById('posHeaderLabel').innerText = header;
+  document.getElementById('cellText').innerText = header + ' - Baris ' + row;
+
+  // Nama produk
+  // Nama produk (opsional — bisa disembunyikan)
+var f = files[currentId];
+var hideProduct = !!f.hideProduct;
+var prodRow = d[row - 1] || [];
+var pName = prodRow[productCol - 1];
+if (pName == null || pName === '') pName = '(kosong)';
+document.getElementById('productName').innerText = pName;
+var shouldShow = !hideProduct && (col !== productCol);
+document.getElementById('productRow').style.display = shouldShow ? 'inline-block' : 'none';
+document.getElementById('productRestore').classList.toggle('hidden', !hideProduct);
+
+  // Isi input
+  document.getElementById('dataInput').value = r[col - 1] || '';
+
+  // Update status kolom di footer editor
+  setStatus('editorStatus', 'Kolom ' + colL + ' - ' + header, true);
+}
+
+// ==================== NAVIGASI ====================
+function saveCurrentCell() {
+  if (!currentId) return;
+  var val = document.getElementById('dataInput').value;
+  var d = files[currentId].data;
+  while (d.length < row) d.push([]);
+  var r = d[row - 1];
+  while (r.length < col) r.push('');
+  var oldVal = r[col - 1] || '';
+  if (String(oldVal) === String(val)) return;
+  r[col - 1] = val;
+  saveCurrentFile();
+}
+
+function up()    { saveCurrentCell(); if (row > 1) row--; refresh(); }
+function down()  { saveCurrentCell(); row++; refresh(); }
+function left()  { saveCurrentCell(); if (col > 1) col--; refresh(); }
+function right() { saveCurrentCell(); col++; refresh(); }
+
+function ok() {
+  saveCurrentCell();
+  document.getElementById('dataInput').value = '';
+  row++;
+  refresh();
+  document.getElementById('dataInput').focus();
+}
+
+// ==================== DOWNLOAD CSV ====================
+function downloadCSV() {
+  if (!currentId) return;
+  var f = files[currentId];
+  var csv = stringifyCSV(f.data);
+  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = f.name.replace(/\.csv$/i, '') + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  setStatus('editorStatus', 'CSV siap disimpan: pilih lokasi pada dialog Android');
+}
+
+// ==================== MODAL: PILIH KOLOM ====================
+function openPicker(mode) {
+  pickerMode = mode;
+  if (!currentId) return;
+  var d = files[currentId].data;
+  var head = d[0] || [];
+  var title = (mode === 'product') ? 'Pilih Sumber Nama Produk' : 'Pilih Kolom';
+  document.getElementById('pickerTitle').innerText = title;
+  var active = (mode === 'product') ? productCol : col;
+  var html = '';
+  var maxLen = Math.max(head.length, col, productCol, 1);
+  for (var i = 0; i < maxLen; i++) {
+    var cn = i + 1;
+    var label = head[i] != null && head[i] !== '' ? head[i] : '(kolom ' + colLetter(cn) + ')';
+    html += '<div class="modal-item' + (cn === active ? ' active' : '') + '" data-c="' + cn + '">'
+      + '<div class="lt">' + colLetter(cn) + '</div>'
+      + '<div>' + escapeHtml(label) + '</div>'
+      + '</div>';
+  }
+  var list = document.getElementById('pickerList');
+  list.innerHTML = html;
+  var items = list.querySelectorAll('.modal-item');
+  for (var j = 0; j < items.length; j++) {
+    items[j].addEventListener('click', function () {
+      var cn = parseInt(this.getAttribute('data-c'), 10);
+      pickColumn(cn);
+    });
+  }
+  document.getElementById('modalPicker').classList.add('show');
+}
+
+function closePicker() {
+  document.getElementById('modalPicker').classList.remove('show');
+}
+
+function pickColumn(cn) {
+  if (pickerMode === 'product') {
+    productCol = cn;
+    setStatus('editorStatus', 'Sumber produk: kolom ' + colLetter(cn));
+  } else {
+    col = cn;
+    setStatus('editorStatus', 'Pindah ke kolom ' + colLetter(cn));
+  }
+  closePicker();
+  refresh();
+}
+
+// ==================== MODAL: NAMA FILE ====================
+function openNameModal() {
+  document.getElementById('newFileName').value = '';
+  document.getElementById('modalName').classList.add('show');
+  setTimeout(function () {
+    document.getElementById('newFileName').focus();
+  }, 100);
+}
+
+function closeNameModal() {
+  document.getElementById('modalName').classList.remove('show');
+}
+
+function createNewFile() {
+  var name = (document.getElementById('newFileName').value || '').trim();
+  if (!name) { alert('Nama file tidak boleh kosong'); return; }
+  name = name.replace(/\.csv$/i, '');
+  var id = uid();
+  files[id] = {
+    name: name,
+    data: [['Kode Produk', 'SKU Induk', 'Nama Produk', 'Kode Variasi', 'Nama Variasi', 'Berat', 'Harga']],
+    updated: nowStr()
+  };
+  saveFiles();
+  closeNameModal();
+  openFile(id);
+  setStatus('editorStatus', 'File baru dibuat. Isi header dulu, lalu turun ke baris 2.');
+}
+
+// ==================== UPLOAD CSV ====================
+function handleFileUpload(ev) {
+  var file = ev.target.files && ev.target.files[0];
+  if (!file) return;
+
+  var lowerName = file.name.toLowerCase();
+  var isCSV = lowerName.endsWith('.csv');
+  var isXLSX = lowerName.endsWith('.xlsx');
+
+  if (!isCSV && !isXLSX) {
+    alert('Format tidak didukung. Gunakan .csv atau .xlsx');
+    ev.target.value = '';
+    return;
+  }
+
+  var fileName = file.name.replace(/\.(csv|xlsx)$/i, '');
+  var newId = uid();
+
+  if (isCSV) {
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      try {
+        var parsed = parseCSV(e.target.result);
+        if (parsed.length === 0) parsed = [['']];
+        files[newId] = { name: fileName, data: parsed, updated: nowStr() };
+        saveFiles();
+        openFile(newId);
+        setStatus('editorStatus', 'CSV diunggah: ' + fileName + ' (' + parsed.length + ' baris)');
+      } catch (err) {
+        alert('Gagal baca CSV: ' + err.message);
+      }
+    };
+    reader.readAsText(file, 'UTF-8');
+  } else {
+    setStatus('editorStatus', 'Memproses XLSX...');
+    var reader2 = new FileReader();
+    reader2.onload = function (e) {
+      parseXLSX(e.target.result).then(function (parsed) {
+        if (parsed.length === 0) parsed = [['']];
+        files[newId] = { name: fileName, data: parsed, updated: nowStr() };
+        saveFiles();
+        openFile(newId);
+        setStatus('editorStatus', 'XLSX diunggah: ' + fileName + ' (' + parsed.length + ' baris)');
+      }).catch(function (err) {
+        alert('Gagal baca XLSX: ' + err.message);
+      });
+    };
+    reader2.readAsArrayBuffer(file);
+  }
+
+  ev.target.value = '';
+}
+
+// ==================== EVENT BINDING ====================
+document.getElementById('btnNew').addEventListener('click', openNameModal);
+document.getElementById('btnUpload').addEventListener('click', function () {
+  document.getElementById('fileInput').click();
+});
+document.getElementById('fileInput').addEventListener('change', handleFileUpload);
+
+document.getElementById('btnNameCancel').addEventListener('click', closeNameModal);
+document.getElementById('btnNameOk').addEventListener('click', createNewFile);
+
+document.getElementById('btnBack').addEventListener('click', function () {
+  saveCurrentFile();
+  showHome();
+});
+
+document.getElementById('btnUp').addEventListener('click', up);
+document.getElementById('btnDown').addEventListener('click', down);
+document.getElementById('btnLeft').addEventListener('click', left);
+document.getElementById('btnRight').addEventListener('click', right);
+document.getElementById('btnOk').addEventListener('click', ok);
+document.getElementById('btnDownload').addEventListener('click', downloadCSV);
+
+document.getElementById('posHeader').addEventListener('click', function () { openPicker('navigate'); });
+document.getElementById('productRow').addEventListener('click', function () { openPicker('product'); });
+
+document.getElementById('btnPickerClose').addEventListener('click', closePicker);
+document.getElementById('modalPicker').addEventListener('click', function (e) {
+  if (e.target === this) closePicker();
+});
+document.getElementById('modalName').addEventListener('click', function (e) {
+  if (e.target === this) closeNameModal();
+});
+
+// Tutup modal pakai tombol ESC (untuk tes di desktop)
+document.addEventListener('touchmove', function(e) {
+  var target = e.target;
+  // Izinkan scroll di dropdown search
+  if (target.closest && target.closest('.search-results')) return;
+  // Blokir scroll kalau keyboard terbuka
+  if (document.body.classList.contains('keyboard-open')) {
+    e.preventDefault();
+  }
+}, { passive: false });
+
+document.getElementById('productClose').addEventListener('click', function (e) {
+  e.stopPropagation();
+  if (!currentId) return;
+  files[currentId].hideProduct = true;
+  saveFiles();
+  refresh();
+  setStatus('editorStatus', 'Referensi produk disembunyikan');
+});
+
+document.getElementById('productRestore').addEventListener('click', function () {
+  if (!currentId) return;
+  files[currentId].hideProduct = false;
+  saveFiles();
+  refresh();
+  setStatus('editorStatus', 'Referensi produk ditampilkan');
+});
+// ==================== XLSX EXPORT ====================
+var CRC_TABLE = (function () {
+  var c, table = [];
+  for (var n = 0; n < 256; n++) {
+    c = n;
+    for (var k = 0; k < 8; k++) {
+      c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    }
+    table[n] = c >>> 0;
+  }
+  return table;
+})();
+
+function crc32Bytes(bytes) {
+  var crc = 0 ^ (-1);
+  for (var i = 0; i < bytes.length; i++) {
+    crc = (crc >>> 8) ^ CRC_TABLE[(crc ^ bytes[i]) & 0xFF];
+  }
+  return (crc ^ (-1)) >>> 0;
+}
+
+function zipFiles(files) {
+  var encoder = new TextEncoder();
+  var parts = [];
+  var centralDir = [];
+  var offset = 0;
+  var i;
+
+  for (i = 0; i < files.length; i++) {
+    var f = files[i];
+    var dataBytes = encoder.encode(f.data);
+    var nameBytes = encoder.encode(f.name);
+    var crc = crc32Bytes(dataBytes);
+    var size = dataBytes.length;
+
+    var header = new Uint8Array(30 + nameBytes.length);
+    var view = new DataView(header.buffer);
+    view.setUint32(0, 0x04034b50, true);
+    view.setUint16(4, 20, true);
+    view.setUint16(6, 0, true);
+    view.setUint16(8, 0, true);
+    view.setUint16(10, 0, true);
+    view.setUint16(12, 0, true);
+    view.setUint32(14, crc, true);
+    view.setUint32(18, size, true);
+    view.setUint32(22, size, true);
+    view.setUint16(26, nameBytes.length, true);
+    view.setUint16(28, 0, true);
+    header.set(nameBytes, 30);
+
+    parts.push(header);
+    parts.push(dataBytes);
+
+    var cd = new Uint8Array(46 + nameBytes.length);
+    var cdView = new DataView(cd.buffer);
+    cdView.setUint32(0, 0x02014b50, true);
+    cdView.setUint16(4, 20, true);
+    cdView.setUint16(6, 20, true);
+    cdView.setUint16(8, 0, true);
+    cdView.setUint16(10, 0, true);
+    cdView.setUint16(12, 0, true);
+    cdView.setUint16(14, 0, true);
+    cdView.setUint32(16, crc, true);
+    cdView.setUint32(20, size, true);
+    cdView.setUint32(24, size, true);
+    cdView.setUint16(28, nameBytes.length, true);
+    cdView.setUint16(30, 0, true);
+    cdView.setUint16(32, 0, true);
+    cdView.setUint16(34, 0, true);
+    cdView.setUint16(36, 0, true);
+    cdView.setUint32(38, 0, true);
+    cdView.setUint32(42, offset, true);
+    cd.set(nameBytes, 46);
+    centralDir.push(cd);
+
+    offset += header.length + dataBytes.length;
+  }
+
+  var cdSize = 0;
+  for (i = 0; i < centralDir.length; i++) cdSize += centralDir[i].length;
+  var cdOffset = offset;
+
+  var eocd = new Uint8Array(22);
+  var eocdView = new DataView(eocd.buffer);
+  eocdView.setUint32(0, 0x06054b50, true);
+  eocdView.setUint16(4, 0, true);
+  eocdView.setUint16(6, 0, true);
+  eocdView.setUint16(8, files.length, true);
+  eocdView.setUint16(10, files.length, true);
+  eocdView.setUint32(12, cdSize, true);
+  eocdView.setUint32(16, cdOffset, true);
+  eocdView.setUint16(20, 0, true);
+
+  var totalLen = offset + cdSize + 22;
+  var result = new Uint8Array(totalLen);
+  var pos = 0;
+  for (i = 0; i < parts.length; i++) { result.set(parts[i], pos); pos += parts[i].length; }
+  for (i = 0; i < centralDir.length; i++) { result.set(centralDir[i], pos); pos += centralDir[i].length; }
+  result.set(eocd, pos);
+
+  return new Blob([result], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+}
+
+function escapeXml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function buildSheetXml(rows) {
+  var xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+  xml += '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>';
+  for (var r = 0; r < rows.length; r++) {
+    var rd = rows[r] || [];
+    xml += '<row r="' + (r + 1) + '">';
+    for (var c = 0; c < rd.length; c++) {
+      var v = rd[c] == null ? '' : String(rd[c]);
+      if (v === '') continue;
+      var ref = colLetter(c + 1) + (r + 1);
+      xml += '<c r="' + ref + '" t="inlineStr"><is><t xml:space="preserve">' + escapeXml(v) + '</t></is></c>';
+    }
+    xml += '</row>';
+  }
+  xml += '</sheetData></worksheet>';
+  return xml;
+}
+
+function downloadXLSX() {
+  if (!currentId) return;
+  var f = files[currentId];
+
+  var contentTypes = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+    + '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+    + '<Default Extension="xml" ContentType="application/xml"/>'
+    + '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+    + '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+    + '</Types>';
+
+  var rels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+    + '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'
+    + '</Relationships>';
+
+  var workbook = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    + '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+    + '<sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets>'
+    + '</workbook>';
+
+  var wbRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+    + '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
+    + '</Relationships>';
+
+  var sheetXml = buildSheetXml(f.data);
+
+  var zipBlob = zipFiles([
+    { name: '[Content_Types].xml', data: contentTypes },
+    { name: '_rels/.rels', data: rels },
+    { name: 'xl/workbook.xml', data: workbook },
+    { name: 'xl/_rels/workbook.xml.rels', data: wbRels },
+    { name: 'xl/worksheets/sheet1.xml', data: sheetXml }
+  ]);
+
+  var url = URL.createObjectURL(zipBlob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = f.name.replace(/\.(csv|xlsx)$/i, '') + '.xlsx';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  setStatus('editorStatus', 'XLSX siap disimpan: pilih lokasi pada dialog Android');
+}
+
+document.getElementById('btnDownloadXlsx').addEventListener('click', downloadXLSX);
+// ==================== VISUAL VIEWPORT (KEYBOARD HANDLER) ====================
+(function () {
+  var app = document.getElementById('app');
+
+  function updateViewport() {
+    if (window.visualViewport) {
+      var vv = window.visualViewport;
+      app.style.height = vv.height + 'px';
+      app.style.top = vv.offsetTop + 'px';
+    } else {
+      // Fallback: pakai innerHeight
+      app.style.height = window.innerHeight + 'px';
+      app.style.top = '0px';
+    }
+  }
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', updateViewport);
+    window.visualViewport.addEventListener('scroll', updateViewport);
+  } else {
+    window.addEventListener('resize', updateViewport);
+  }
+
+  updateViewport();
+  window.addEventListener('orientationchange', function () {
+    setTimeout(updateViewport, 100);
+  });
+})();
+// ==================== INIT ====================
+// ==================== SEARCH ====================
+function handleSearch(keyword) {
+  var box = document.getElementById('searchResults');
+  var body = document.getElementById('searchResultsBody');
+  var count = document.getElementById('searchCount');
+  var clearBtn = document.getElementById('searchClear');
+
+  if (!currentId || !keyword || keyword.length < 2) {
+    box.classList.remove('show');
+    clearBtn.classList.add('hidden');
+    return;
+  }
+
+  clearBtn.classList.remove('hidden');
+
+  var d = files[currentId].data;
+  var kw = keyword.toLowerCase();
+  var matches = [];
+
+  for (var r = 0; r < d.length; r++) {
+    var rd = d[r] || [];
+    for (var c = 0; c < rd.length; c++) {
+      var cell = String(rd[c] || '');
+      if (cell.toLowerCase().indexOf(kw) !== -1) {
+        matches.push({
+          row: r + 1,
+          col: c + 1,
+          text: cell,
+          header: (d[0] && d[0][c]) ? d[0][c] : '(kolom ' + colLetter(c + 1) + ')'
+        });
+        break;
+      }
+    }
+    if (matches.length >= 100) break;
+  }
+
+  if (matches.length === 0) {
+    count.innerText = '0 hasil';
+    body.innerHTML = '<div class="search-empty">Tidak ditemukan</div>';
+    box.classList.add('show');
+    return;
+  }
+
+  count.innerText = matches.length + ' hasil';
+
+  var html = '';
+  for (var i = 0; i < matches.length; i++) {
+    var m = matches[i];
+    html += '<div class="search-item" data-r="' + m.row + '" data-c="' + m.col + '">'
+      + '<div class="si-info">' + colLetter(m.col) + m.row + ' - ' + escapeHtml(m.header) + '</div>'
+      + '<div class="si-text">' + escapeHtml(m.text) + '</div>'
+      + '</div>';
+  }
+  body.innerHTML = html;
+  box.classList.add('show');
+
+   var items = body.querySelectorAll('.search-item');
+for (var k = 0; k < items.length; k++) {
+  (function (el) {
+    var startY = 0;
+    var startX = 0;
+    var moved = false;
+
+    el.addEventListener('touchstart', function (e) {
+      var t = e.touches[0];
+      startX = t.clientX;
+      startY = t.clientY;
+      moved = false;
+    }, { passive: true });
+
+    el.addEventListener('touchmove', function (e) {
+      var t = e.touches[0];
+      var dx = Math.abs(t.clientX - startX);
+      var dy = Math.abs(t.clientY - startY);
+      if (dx > 10 || dy > 10) moved = true;
+    }, { passive: true });
+
+    el.addEventListener('touchend', function (e) {
+      if (moved) return; // kalau scroll, jangan pilih
+      e.preventDefault();
+      e.stopPropagation();
+      var r = parseInt(el.getAttribute('data-r'), 10);
+      var c = parseInt(el.getAttribute('data-c'), 10);
+      jumpTo(r, c);
+    });
+
+    // Fallback untuk desktop
+    el.addEventListener('click', function (e) {
+      if (moved) return;
+      e.preventDefault();
+      e.stopPropagation();
+      var r = parseInt(el.getAttribute('data-r'), 10);
+      var c = parseInt(el.getAttribute('data-c'), 10);
+      jumpTo(r, c);
+    });
+  })(items[k]);
+}
+}
+
+function closeSearch() {
+  var box = document.getElementById('searchResults');
+  var body = document.getElementById('searchResultsBody');
+  box.classList.remove('show');
+  document.getElementById('searchInput').value = '';
+  document.getElementById('searchClear').classList.add('hidden');
+  if (body) body.innerHTML = '';
+}
+
+function jumpTo(r, c) {
+  saveCurrentCell();
+  row = r;
+  col = c;
+  refresh();
+  closeSearch();
+  document.getElementById('dataInput').focus();
+  setStatus('editorStatus', 'Lompat ke ' + colLetter(c) + r);
+}
+
+function bindTap(elId, fn) {
+  var el = document.getElementById(elId);
+  if (!el) return;
+  var handler = function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    fn();
+  };
+  el.addEventListener('touchend', handler);
+  el.addEventListener('click', handler);
+}
+
+document.getElementById('searchInput').addEventListener('input', function () {
+  handleSearch(this.value);
+});
+
+bindTap('searchClear', function () {
+  closeSearch();
+  document.getElementById('searchInput').focus();
+});
+
+bindTap('searchCancel', function () {
+  closeSearch();
+  document.getElementById('dataInput').focus();
+});
+
+// ==================== INIT ====================
+loadFiles();
+showHome();
+</script>
+
+</body>
+</html>
